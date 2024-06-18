@@ -1,0 +1,217 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+
+typedef struct LeituraSensor {
+    int valor;
+    struct LeituraSensor* proximo;
+} LeituraSensor;
+
+typedef struct {
+    LeituraSensor* frente;
+    LeituraSensor* tras;
+} FilaLeituras;
+
+void inicializarFila(FilaLeituras* fila) {
+    fila->frente = NULL;
+    fila->tras = NULL;
+}
+
+int filaVazia(FilaLeituras* fila) {
+    return (fila->frente == NULL);
+}
+
+void enfileirar(FilaLeituras* fila, int valor) {
+    LeituraSensor* novaLeitura = (LeituraSensor*) malloc(sizeof(LeituraSensor));
+    if (novaLeitura == NULL) {
+        fprintf(stderr, "Erro ao alocar memória para nova leitura de sensor.\n");
+        exit(EXIT_FAILURE);
+    }
+    novaLeitura->valor = valor;
+    novaLeitura->proximo = NULL;
+    
+    if (fila->tras == NULL) {
+        fila->frente = novaLeitura;
+        fila->tras = novaLeitura;
+    } else {
+        fila->tras->proximo = novaLeitura;
+        fila->tras = novaLeitura;
+    }
+}
+
+int desenfileirar(FilaLeituras* fila) {
+    if (filaVazia(fila)) {
+        fprintf(stderr, "Erro: fila está vazia, não é possível desenfileirar.\n");
+        exit(EXIT_FAILURE);
+    }
+    LeituraSensor* leituraRemovida = fila->frente;
+    int valor = leituraRemovida->valor;
+    fila->frente = fila->frente->proximo;
+    if (fila->frente == NULL) {
+        fila->tras = NULL;
+    }
+    free(leituraRemovida);
+    return valor;
+}
+
+typedef struct NoArvore {
+    int valor;
+    struct NoArvore* esquerda;
+    struct NoArvore* direita;
+} NoArvore;
+
+NoArvore* criarNo(int valor) {
+    NoArvore* novoNo = (NoArvore*) malloc(sizeof(NoArvore));
+    if (novoNo == NULL) {
+        fprintf(stderr, "Erro ao alocar memória para novo nó da árvore.\n");
+        exit(EXIT_FAILURE);
+    }
+    novoNo->valor = valor;
+    novoNo->esquerda = NULL;
+    novoNo->direita = NULL;
+    return novoNo;
+}
+
+NoArvore* inserirNaArvore(NoArvore* raiz, int valor) {
+    if (raiz == NULL) {
+        return criarNo(valor);
+    }
+    if (valor < raiz->valor) {
+        raiz->esquerda = inserirNaArvore(raiz->esquerda, valor);
+    } else if (valor > raiz->valor) {
+        raiz->direita = inserirNaArvore(raiz->direita, valor);
+    }
+    return raiz;
+}
+
+NoArvore* buscarNaArvore(NoArvore* raiz, int valor) {
+    if (raiz == NULL || raiz->valor == valor) {
+        return raiz;
+    }
+    if (valor < raiz->valor) {
+        return buscarNaArvore(raiz->esquerda, valor);
+    } else {
+        return buscarNaArvore(raiz->direita, valor);
+    }
+}
+
+void liberarArvore(NoArvore* raiz) {
+    if (raiz != NULL) {
+        liberarArvore(raiz->esquerda);
+        liberarArvore(raiz->direita);
+        free(raiz);
+    }
+}
+
+float calcularMedia(FilaLeituras* fila) {
+    if (filaVazia(fila)) {
+        fprintf(stderr, "Erro: fila está vazia, não é possível calcular a média.\n");
+        exit(EXIT_FAILURE);
+    }
+    LeituraSensor* atual = fila->frente;
+    int soma = 0;
+    int contador = 0;
+    while (atual != NULL) {
+        soma += atual->valor;
+        contador++;
+        atual = atual->proximo;
+    }
+    return (float) soma / contador;
+}
+
+float calcularDesvioPadrao(FilaLeituras* fila) {
+    if (filaVazia(fila)) {
+        fprintf(stderr, "Erro: fila está vazia, não é possível calcular o desvio padrão.\n");
+        exit(EXIT_FAILURE);
+    }
+    float media = calcularMedia(fila);
+    LeituraSensor* atual = fila->frente;
+    int contador = 0;
+    float somaDiferencasQuadrado = 0.0;
+    while (atual != NULL) {
+        float diferenca = atual->valor - media;
+        somaDiferencasQuadrado += diferenca * diferenca;
+        contador++;
+        atual = atual->proximo;
+    }
+    float desvioPadrao = sqrt(somaDiferencasQuadrado / contador);
+    return desvioPadrao;
+}
+
+int main() {
+    FilaLeituras fila;
+    inicializarFila(&fila);
+    
+    NoArvore* raizArvore = NULL;
+
+    int opcao = 0;
+    int valor;
+
+    srand(time(NULL));
+    for (int i = 0; i < 10; i++) {
+        int novaLeitura = rand() % 100; // Simula uma leitura de sensor (valores de 0 a 99)
+        enfileirar(&fila, novaLeitura);
+        raizArvore = inserirNaArvore(raizArvore, novaLeitura);
+        printf("Nova leitura de sensor: %d\n", novaLeitura);
+        // sleep(1); // Descomente esta linha se tiver a função sleep disponível
+    }
+
+    while (opcao != 5) {
+        printf("\nMenu:\n");
+        printf("1. Adicionar leitura de sensor\n");
+        printf("2. Calcular média das leituras\n");
+        printf("3. Calcular desvio padrão das leituras\n");
+        printf("4. Consultar valor na árvore binária\n");
+        printf("5. Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+            case 1: {
+                printf("Digite o valor da leitura de sensor: ");
+                scanf("%d", &valor);
+                enfileirar(&fila, valor);
+                raizArvore = inserirNaArvore(raizArvore, valor);
+                printf("Leitura adicionada com sucesso.\n");
+                break;
+            }
+            case 2: {
+                float media = calcularMedia(&fila);
+                printf("Média das leituras de sensor: %.2f\n", media);
+                break;
+            }
+            case 3: {
+                float desvioPadrao = calcularDesvioPadrao(&fila);
+                printf("Desvio padrão das leituras de sensor: %.2f\n", desvioPadrao);
+                break;
+            }
+            case 4: {
+                printf("Digite o valor para consultar na árvore binária: ");
+                scanf("%d", &valor);
+                NoArvore* encontrado = buscarNaArvore(raizArvore, valor);
+                if (encontrado != NULL) {
+                    printf("Valor encontrado na árvore binária.\n");
+                } else {
+                    printf("Valor não encontrado na árvore binária.\n");
+                }
+                break;
+            }
+            case 5: {
+                printf("Encerrando o programa...\n");
+                break;
+            }
+            default:
+                printf("Opção inválida. Tente novamente.\n");
+                break;
+        }
+    }
+
+    while (!filaVazia(&fila)) {
+        desenfileirar(&fila);
+    }
+
+    liberarArvore(raizArvore);
+
+    return 0;
+}
